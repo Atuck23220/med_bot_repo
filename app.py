@@ -102,7 +102,7 @@ def chatbot_interface(user_message, history=[]):
     # Initial distress detection
     if any(keyword in msg for keyword in ["panic", "anxiety", "overwhelmed", "stressed"]):
         response = (
-            "Therapy Mode: I notice words that suggest distress. "
+            "Support Mode: I notice words that suggest distress. "
             "Try grounding techniques: 5-4-3-2-1 method (5 things you see, 4 you touch, 3 you hear, "
             "2 you smell, 1 you taste). Take slow breaths while doing this."
         )
