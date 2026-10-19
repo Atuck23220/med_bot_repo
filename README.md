@@ -1,5 +1,7 @@
 # MedBot
 
+[![tests](https://github.com/Atuck23220/med_bot_repo/actions/workflows/tests.yml/badge.svg)](https://github.com/Atuck23220/med_bot_repo/actions/workflows/tests.yml)
+
 A small, readable demonstration of a **layered guardrail and intent-routing architecture** that sits in front of a large language model. The medical assistant is the reference use case; the structure is the point. The safety and routing layers are deliberately simple and rule-based so the control flow stays legible and easy to retarget at other domains (wellness, clinical information, retrieval-augmented Q&A).
 
 > **Disclaimer:** MedBot is for educational and demonstration purposes only. It does not provide medical advice and is not a diagnostic tool.
