@@ -22,12 +22,12 @@ The keyword lists are intentionally minimal. They are the demonstration's extens
 
 Each message is evaluated top to bottom. The first layer that matches handles the message and returns; nothing below it runs.
 
-1. **Authentication gate** — unauthenticated users are stopped before any processing.
-2. **Crisis interception** — self-harm language returns 988 / 911 and campus counseling resources immediately, without a model call. Stateless and deterministic by design.
-3. **Safety gate** — emergency terms return a 911 message; dosing and prescription terms return a "consult a licensed clinician" refusal. Neither reaches the model. This runs before the distress layers so that an ongoing grounding conversation can never mask an emergency like "I'm having chest pain".
-4. **Stateful distress follow-up** — if the previous turn offered grounding techniques, this turn is interpreted in that context: a negated reply ("not working", "isn't helping", "doesn't help") escalates to a professional-referral message, while a positive reply acknowledges and closes. This is the one layer that reasons across turns.
-5. **Distress entry** — first-time distress language (panic, anxiety, overwhelmed, stressed) offers a 5-4-3-2-1 grounding exercise and primes the follow-up layer above.
-6. **Intent routing** — remaining messages are classified medical vs. general by keyword. Medical messages get a cautious, education-only system prompt; everything else gets the general assistant prompt. Only here is the OpenAI API called.
+1. **Authentication gate**: unauthenticated users are stopped before any processing.
+2. **Crisis interception**: self-harm language returns 988 / 911 and campus counseling resources immediately, without a model call. Stateless and deterministic by design.
+3. **Safety gate**: emergency terms return a 911 message; dosing and prescription terms return a "consult a licensed clinician" refusal. Neither reaches the model. This runs before the distress layers so that an ongoing grounding conversation can never mask an emergency like "I'm having chest pain".
+4. **Stateful distress follow-up**: if the previous turn offered grounding techniques, this turn is interpreted in that context: a negated reply ("not working", "isn't helping", "doesn't help") escalates to a professional-referral message, while a positive reply acknowledges and closes. This is the one layer that reasons across turns.
+5. **Distress entry**: first-time distress language (panic, anxiety, overwhelmed, stressed) offers a 5-4-3-2-1 grounding exercise and primes the follow-up layer above.
+6. **Intent routing**: remaining messages are classified medical vs. general by keyword. Medical messages get a cautious, education-only system prompt; everything else gets the general assistant prompt. Only here is the OpenAI API called.
 
 The ordering is the safety property: high-severity triggers are caught in the earliest layers and short-circuit the rest, so a crisis message never depends on the routing logic at the bottom. `tests/test_pipeline.py` checks this ordering, including emergencies sent mid-way through a grounding conversation.
 
@@ -37,9 +37,9 @@ The ordering is the safety property: high-severity triggers are caught in the ea
 
 The same pipeline supports other assistants by editing data, not structure:
 
-- **Wellness assistant** — widen the distress and grounding layers, drop the medical routing branch.
-- **Clinical-information assistant** — expand the medical keyword set and the conservative prompt; keep the dosing and emergency refusals.
-- **Retrieval-augmented (RAG) assistant** — insert a retrieval step inside the routed branch before the model call, so grounded context is supplied only after a message clears the guardrails.
+- **Wellness assistant**: widen the distress and grounding layers, drop the medical routing branch.
+- **Clinical-information assistant**: expand the medical keyword set and the conservative prompt; keep the dosing and emergency refusals.
+- **Retrieval-augmented (RAG) assistant**: insert a retrieval step inside the routed branch before the model call, so grounded context is supplied only after a message clears the guardrails.
 
 In each case the auth, crisis, and safety layers stay in place; only the keyword sets, prompts, and the routed branch change.
 
@@ -53,6 +53,7 @@ In each case the auth, crisis, and safety layers stay in place; only the keyword
 - File-backed registration and login (VCU-email gated)
 - Environment-based configuration via dotenv
 - Gradio web UI with Login, Register, Chat, and Resources tabs
+- Pytest suite and GitHub Actions CI covering the pipeline ordering
 
 ## Requirements
 
@@ -93,14 +94,25 @@ Example prompts:
 - Medical: "What are common side effects of antihistamines?"
 - Distress (grounding flow): "I feel really overwhelmed."
 
+## Running tests
+
+```bash
+pytest -v
+```
+
+The suite never calls the OpenAI API. It sets a dummy key and stubs the model call, so it runs without `med_storage` and costs nothing. GitHub Actions runs the same suite on every push and pull request.
+
 ---
 
 ## Architecture
 
-- `app.py` — Gradio UI, the guardrail pipeline, routing, system prompts, and the OpenAI call
-- `auth.py` — `register_user` / `login_user` helpers (file-backed demo auth)
-- `requirements.txt` — dependencies
-- `README.md` / `LICENSE` — documentation and MIT license
+- `app.py`: Gradio UI, the guardrail pipeline, routing, system prompts, and the OpenAI call
+- `auth.py`: `register_user` / `login_user` helpers (file-backed demo auth)
+- `requirements.txt`: dependencies
+- `tests/test_pipeline.py`: end-to-end tests of the guardrail pipeline, with the model call stubbed
+- `.github/workflows/tests.yml`: CI that runs the tests on every push and pull request
+- `pytest.ini`: test discovery settings
+- `README.md` / `LICENSE`: documentation and MIT license
 
 Design notes: a single entry point keeps the control flow reviewable; each guardrail is an isolated rule set; prompts and keyword sets are separated from the flow so the skeleton is retargetable.
 
@@ -113,6 +125,7 @@ These are properties of a teaching demo
 - **Keyword matching is shallow.** The gates use case-insensitive substring matching, so they miss paraphrase and novel phrasing and can false-positive on substrings. A production version would replace them with a trained classifier.
 - **The general fallback is unguarded.** Any message that clears every safety layer but matches no medical keyword is routed to the general-assistant prompt, which is not safety-tuned. This is a known gap; a conservative default prompt or a safety-aware general prompt would close it.
 - **Authentication is demo-grade.** Passwords are stored as unsalted SHA-256 hashes in a local JSON file. This is not suitable for real credentials; production would use a salted, slow password hash and a real user store.
+- **The negation check is broad.** After a grounding prompt, any reply containing "not", "no", "never", or "n't" is treated as "not helping" and gets the counseling referral, including positive replies like "no, that worked." This errs toward over-referral by design.
 - **Public sharing is on.** `demo.launch(share=True)` exposes a temporary public URL. Disable for local-only use.
 - **No persistence or PHI/PII handling.** Not intended for regulated workloads.
 
