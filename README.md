@@ -1,5 +1,7 @@
 # MedBot
 
+[![tests](https://github.com/Atuck23220/med_bot_repo/actions/workflows/tests.yml/badge.svg)](https://github.com/Atuck23220/med_bot_repo/actions/workflows/tests.yml)
+
 A small, readable demonstration of a **layered guardrail and intent-routing architecture** that sits in front of a large language model. The medical assistant is the reference use case; the structure is the point. The safety and routing layers are deliberately simple and rule-based so the control flow stays legible and easy to retarget at other domains (wellness, clinical information, retrieval-augmented Q&A).
 
 > **Disclaimer:** MedBot is for educational and demonstration purposes only. It does not provide medical advice and is not a diagnostic tool.
@@ -22,12 +24,12 @@ Each message is evaluated top to bottom. The first layer that matches handles th
 
 1. **Authentication gate** — unauthenticated users are stopped before any processing.
 2. **Crisis interception** — self-harm language returns 988 / 911 and campus counseling resources immediately, without a model call. Stateless and deterministic by design.
-3. **Stateful distress follow-up** — if the previous turn offered grounding techniques, this turn is interpreted in that context: a "not working" reply escalates to a professional-referral message, while a positive reply acknowledges and closes. This is the one layer that reasons across turns.
-4. **Distress entry** — first-time distress language (panic, anxiety, overwhelmed, stressed) offers a 5-4-3-2-1 grounding exercise and primes the follow-up layer above.
-5. **Safety gate** — emergency terms return a 911 message; dosing and prescription terms return a "consult a licensed clinician" refusal. Neither reaches the model.
+3. **Safety gate** — emergency terms return a 911 message; dosing and prescription terms return a "consult a licensed clinician" refusal. Neither reaches the model. This runs before the distress layers so that an ongoing grounding conversation can never mask an emergency like "I'm having chest pain".
+4. **Stateful distress follow-up** — if the previous turn offered grounding techniques, this turn is interpreted in that context: a negated reply ("not working", "isn't helping", "doesn't help") escalates to a professional-referral message, while a positive reply acknowledges and closes. This is the one layer that reasons across turns.
+5. **Distress entry** — first-time distress language (panic, anxiety, overwhelmed, stressed) offers a 5-4-3-2-1 grounding exercise and primes the follow-up layer above.
 6. **Intent routing** — remaining messages are classified medical vs. general by keyword. Medical messages get a cautious, education-only system prompt; everything else gets the general assistant prompt. Only here is the OpenAI API called.
 
-The ordering is the safety property: high-severity triggers are caught in the earliest layers and short-circuit the rest, so a crisis message never depends on the routing logic at the bottom.
+The ordering is the safety property: high-severity triggers are caught in the earliest layers and short-circuit the rest, so a crisis message never depends on the routing logic at the bottom. `tests/test_pipeline.py` checks this ordering, including emergencies sent mid-way through a grounding conversation.
 
 ---
 
@@ -119,7 +121,7 @@ These are properties of a teaching demo
 - Classifier-based safety and routing to replace keyword matching
 - Conservative default prompt on the unmatched routing path
 - Salted password hashing and a real user store
-- Unit tests (starting with `route()` and `safety_gate()`) and GitHub Actions CI
+- Isolated unit tests for `route()` and `safety_gate()` (end-to-end pipeline tests and CI are in place)
 - Optional retrieval-augmented branch and provider abstraction for switching LLM backends
 - Optional session history and export
 
