@@ -1,4 +1,4 @@
-import os, gradio as gr
+import os, re, gradio as gr
 from dotenv import load_dotenv
 from openai import OpenAI
 from auth import register_user, login_user   # auth.py handles authentication
@@ -76,9 +76,19 @@ def chatbot_interface(user_message, history=[]):
         ]
         return history, history
 
+    # --- Safety gate (must run before distress layers so emergencies aren't masked) ---
+    blocked = safety_gate(user_message)
+    if blocked:
+        history = history + [
+            {"role": "user", "content": user_message},
+            {"role": "assistant", "content": blocked}
+        ]
+        return history, history
+
     # --- Therapy distress detection ---
     if history and "Try grounding techniques" in history[-1]["content"]:
-        if "not working" in msg:
+        # Check negation first so "isn't working" doesn't match "working" below
+        if re.search(r"\b(not|no|never)\b|n['’]t\b", msg):
             response = (
                 "It seems the grounding strategies aren’t helping. "
                 "Please consider reaching out to a professional: https://counseling.vcu.edu/"
@@ -109,15 +119,6 @@ def chatbot_interface(user_message, history=[]):
         history = history + [
             {"role": "user", "content": user_message},
             {"role": "assistant", "content": response}
-        ]
-        return history, history
-
-    # --- Safety gate ---
-    blocked = safety_gate(user_message)
-    if blocked:
-        history = history + [
-            {"role": "user", "content": user_message},
-            {"role": "assistant", "content": blocked}
         ]
         return history, history
 
